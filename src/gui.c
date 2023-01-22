@@ -12,7 +12,7 @@
 
 #define FPS 60   // This is just a limit
 #define PIXELS_PER_TILE 15   // Should be bigger than the width and the height of all source images
-#define SOURCE_IMAGES 21   // number of them
+#define SOURCE_IMAGES 22   // number of them
 
 
 
@@ -84,18 +84,20 @@ void DrawMapLost(const struct Image* images, const int* pmi, const int* pcD, con
             int x = (j - 1) * PIXELS_PER_TILE;
             if (i == H && j == W) {
                 if (mi == 1) {
-                    DrawImage(x, y, (images + 20), PIXELS_W);;   //exploded bomb
-                } else {
-                    DrawImage(x, y, (images + pc + 8), PIXELS_W);   //exploded numbers
+                    DrawImage(x, y, (images + 21), PIXELS_W);;   // exploded bomb
+                } else if (pc > 0) {
+                    DrawImage(x, y, (images + pc + 8), PIXELS_W);   // exploded numbers
                 }
             } else if (mi == 1) {
                 if (ma == -1) {
-                    DrawImage(x, y, (images + 17), PIXELS_W);;   //flagg
+                    DrawImage(x, y, (images + 17), PIXELS_W);;   // flagg
                 } else {
-                    DrawImage(x, y, (images + 19), PIXELS_W);;   //bomb
+                    DrawImage(x, y, (images + 20), PIXELS_W);;   // bomb
                 }
+            } else if (ma == -2) {
+                DrawImage(x, y, (images + 18), PIXELS_W);;   // incorrect flagg
             } else {
-                DrawImage(x, y, (images + pc), PIXELS_W);   //numbers
+                DrawImage(x, y, (images + pc), PIXELS_W);   // numbers
             }
         }
     }
@@ -112,11 +114,11 @@ void DrawMap(const struct Image* images, const int* pmi, const int* pcD, const i
             int y = (i - 1) * PIXELS_PER_TILE;
             int x = (j - 1) * PIXELS_PER_TILE;
             if (ma == -2 || ma == -1) {
-                DrawImage(x, y, (images + 17), PIXELS_W);   //flagg
+                DrawImage(x, y, (images + 17), PIXELS_W);   // flagg
             } else if (ma == 1) {
-                DrawImage(x, y, (images + pc), PIXELS_W);   //numbers + empty
+                DrawImage(x, y, (images + pc), PIXELS_W);   // numbers + empty
             } else {
-                DrawImage(x, y, (images + 18), PIXELS_W);   //unknown
+                DrawImage(x, y, (images + 19), PIXELS_W);   // unknown
             }   
         }
     }
@@ -124,22 +126,23 @@ void DrawMap(const struct Image* images, const int* pmi, const int* pcD, const i
 
 
 
-void LeftClick(const struct Image* images, int* alive, int* counter, const int* pmi, int* pcD, int* pcH, int* pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
+void LeftClick(const struct Image* images, int* alive, int* counter, int* emptySpaces, const int* pmi, int* pcD, int* pcH, int* pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
     if (notFlagg(pma, H, W, WIDTH)) {
         if (isMine(pmi, H, W, WIDTH)) {
             wprintf(L"You Died!\n");
             *alive = 0;
-            *counter = FPS * 5;   // 5 seconds before closing
+            *counter = FPS * 500;   // 5 seconds before closing
             DrawMapLost(images, pmi, pcD, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
         } else {
             if (numOfNeighbours(pcH, H, W, WIDTH) > 0) {
                 *(pma + H * WIDTH + W) = 1;
+                *(emptySpaces) -= 1;
                 DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
             } else {
-                if (expand(pmi, pcH, pma, H, W, WIDTH, HEIGHT)) {
+                if (expand(emptySpaces, pmi, pcH, pma, H, W, WIDTH, HEIGHT)) {
                     wprintf(L"You Died!\n");
                     *alive = 0;
-                    *counter = FPS * 5;   // 5 seconds before closing
+                    *counter = FPS * 500;   // 5 seconds before closing
                     DrawMapLost(images, pmi, pcD, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
                 } else {
                     DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
@@ -151,30 +154,40 @@ void LeftClick(const struct Image* images, int* alive, int* counter, const int* 
 
 
 
-void RightClick(const struct Image* images, int* mineCount, const int* pmi, const int* pcD, int* pcH, int* pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
+void RightClick(const struct Image* images, int* emptySpaces, int* flagCount, const int* pmi, const int* pcD, int* pcH, int* pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
     if (isMine(pmi, H, W, WIDTH)) {
         if (notFlagg(pma, H, W, WIDTH)) {
-            if (notExposed(pma, H, W, WIDTH)) {
+            if (notExposed(pma, H, W, WIDTH) && *(flagCount)) {
+                *(flagCount) -= 1;
                 *(pma + H * WIDTH + W) = -1;
-                *(mineCount) -= 1;
+                *(emptySpaces) -= 1;
                 addToNeigbours(pcH, H, W, WIDTH, -1);
                 DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
+            } else {
+                wprintf(L"Illegal position or out of flags!\n");
             }
         } else {
+            *(flagCount) += 1;
             *(pma + H * WIDTH + W) = 0;
-            *(mineCount) += 1;
+            *(emptySpaces) += 1;
             addToNeigbours(pcH, H, W, WIDTH, 1);
             DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
         }
     } else {
         if (notFlagg(pma, H, W, WIDTH)) {
-            if (notExposed(pma, H, W, WIDTH)) {
+            if (notExposed(pma, H, W, WIDTH) && *(flagCount)) {
+                *(flagCount) -= 1;
                 *(pma + H * WIDTH + W) = -2;
+                *(emptySpaces) -= 1;
                 addToNeigbours(pcH, H, W, WIDTH, -1);
                 DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
+            } else {
+                wprintf(L"Illegal position or out of flags!\n");
             }
         } else {
+            *(flagCount) += 1;
             *(pma + H * WIDTH + W) = 0;
+            *(emptySpaces) += 1;
             addToNeigbours(pcH, H, W, WIDTH, 1);
             DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
         }
@@ -302,6 +315,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
                                          "./media/explodedseven.bmp",
                                          "./media/explodedeight.bmp",
                                          "./media/flagg.bmp",
+                                         "./media/incorrectflag.bmp",
                                          "./media/unknown.bmp",
                                          "./media/bomb.bmp",
                                          "./media/explodedbomb.bmp"};
@@ -355,6 +369,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
 
 
     // Creates a map and gets a starting position
+    int emptySpaces = tilesW * tilesH;
     int H;
     int W;
     int failed = 0;
@@ -369,7 +384,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
     }
     matrixCopy(pcD, pcH, WIDTH, HEIGHT);   //copies countDefault to countHidden
     setBorder(pcD, WIDTH, HEIGHT);   //creates a border
-    expand(pmi, pcH, pma, H, W, WIDTH, HEIGHT);   //expand from starting position
+    expand(&emptySpaces, pmi, pcH, pma, H, W, WIDTH, HEIGHT);   //expand from starting position
     DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
 
 
@@ -377,13 +392,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
     // game loop
     wprintf(L"There are %d mines to be found!\n", db);
     POINT pos;
-    int mineCount = db;
+    int flagCount = db;
     int counter = 1;
     int alive = 1;
     while (counter > 0) {
         QueryPerformanceCounter(&startCounter);
-
-        if (mineCount == 0) {
+        if (emptySpaces == 0) {
             wprintf(L" ***  You won!  ***\n");
             counter = 0;
         } else if (alive) {
@@ -401,13 +415,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
                 ScreenToClient(window, &pos);
                 H = pos.y / PIXELS_PER_TILE + 1;
                 W = pos.x / PIXELS_PER_TILE + 1;
-                LeftClick(images, &alive, &counter, pmi, pcD, pcH, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
+                LeftClick(images, &alive, &counter, &emptySpaces, pmi, pcD, pcH, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
             } else if (msg.message == WM_RBUTTONDOWN && alive) {
                 GetCursorPos(&pos);
                 ScreenToClient(window, &pos);
                 H = pos.y / PIXELS_PER_TILE + 1;
                 W = pos.x / PIXELS_PER_TILE + 1;
-                RightClick(images, &mineCount, pmi, pcD, pcH, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
+                RightClick(images, &emptySpaces, &flagCount, pmi, pcD, pcH, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
             }
             TranslateMessage(&msg);
             DispatchMessage(&msg);
