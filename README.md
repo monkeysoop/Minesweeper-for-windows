@@ -14,10 +14,10 @@ gcc .\gui.c .\readBMP.c .\gameEngine.c -lgdi32
 ```
 - After it compiles succesfuly you get an executable which you can just run or can give it parameters:
     - either limit just the size and have a default 20% bomb percentile
-      ```powershell
+      ```
       .\a.exe [Width, min 4] [Height, min 4]
       ```
     - or you can specify the bomb precentile too:
-      ```powershell
+      ```
       .\a.exe [Width, min 4] [Height, min 4] [Bomb percentile, max 90%]
       ```
