@@ -13,6 +13,10 @@
 gcc .\gui.c .\readBMP.c .\gameEngine.c -lgdi32
 ```
 - After it compiles succesfuly you get an executable which you can just run or can give it parameters:
+    - run without parameters (Width will be 16, Height 30, and there will be 99 bombs):
+      ```
+      .\a.exe
+      ```
     - either limit just the size and have a default 20% bomb percentile
       ```
       .\a.exe [Width, min 4] [Height, min 4]
