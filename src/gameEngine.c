@@ -116,33 +116,42 @@ int getStartingPos(const int* pmi, const int* pcD, int* ph, int* pw, int WIDTH, 
     return 1;
 }
 
-void exposeNeigbours(int* pma0, int h, int w, int WIDTH, int HEIGHT) {
-    if (notBorder((h+1), (w+1), WIDTH, HEIGHT) && notFlagg(pma0, (h+1), (w+1), WIDTH)) {
+void exposeNeigbours(int* emptySpaces, int* pma0, int h, int w, int WIDTH, int HEIGHT) {
+    if (notBorder((h+1), (w+1), WIDTH, HEIGHT) && notExposed(pma0, (h+1), (w+1), WIDTH)) {
         *(pma0 + (h+1) * WIDTH + (w+1)) = 1;
+        *(emptySpaces) -= 1;
     }
-    if (notBorder((h+1), (w), WIDTH, HEIGHT) && notFlagg(pma0, (h+1), (w), WIDTH)) {
+    if (notBorder((h+1), (w), WIDTH, HEIGHT) && notExposed(pma0, (h+1), (w), WIDTH)) {
         *(pma0 + (h+1) * WIDTH + (w)) = 1;
+        *(emptySpaces) -= 1;
     }
-    if (notBorder((h+1), (w-1), WIDTH, HEIGHT) && notFlagg(pma0, (h+1), (w-1), WIDTH)) {
+    if (notBorder((h+1), (w-1), WIDTH, HEIGHT) && notExposed(pma0, (h+1), (w-1), WIDTH)) {
         *(pma0 + (h+1) * WIDTH + (w-1)) = 1;
+        *(emptySpaces) -= 1;
     }
-    if (notBorder((h), (w+1), WIDTH, HEIGHT) && notFlagg(pma0, (h), (w+1), WIDTH)) {
+    if (notBorder((h), (w+1), WIDTH, HEIGHT) && notExposed(pma0, (h), (w+1), WIDTH)) {
         *(pma0 + (h) * WIDTH + (w+1)) = 1;
+        *(emptySpaces) -= 1;
     }
-    if (notBorder((h), (w), WIDTH, HEIGHT) && notFlagg(pma0, (h), (w), WIDTH)) {
+    if (notBorder((h), (w), WIDTH, HEIGHT) && notExposed(pma0, (h), (w), WIDTH)) {
         *(pma0 + (h) * WIDTH + (w)) = 1;
+        *(emptySpaces) -= 1;
     }
-    if (notBorder((h), (w-1), WIDTH, HEIGHT) && notFlagg(pma0, (h), (w-1), WIDTH)) {
+    if (notBorder((h), (w-1), WIDTH, HEIGHT) && notExposed(pma0, (h), (w-1), WIDTH)) {
         *(pma0 + (h) * WIDTH + (w-1)) = 1;
+        *(emptySpaces) -= 1;
     }
-    if (notBorder((h-1), (w+1), WIDTH, HEIGHT) && notFlagg(pma0, (h-1), (w+1), WIDTH)) {
+    if (notBorder((h-1), (w+1), WIDTH, HEIGHT) && notExposed(pma0, (h-1), (w+1), WIDTH)) {
         *(pma0 + (h-1) * WIDTH + (w+1)) = 1;
+        *(emptySpaces) -= 1;
     }
-    if (notBorder((h-1), (w), WIDTH, HEIGHT) && notFlagg(pma0, (h-1), (w), WIDTH)) {
+    if (notBorder((h-1), (w), WIDTH, HEIGHT) && notExposed(pma0, (h-1), (w), WIDTH)) {
         *(pma0 + (h-1) * WIDTH + (w)) = 1;
+        *(emptySpaces) -= 1;
     }
-    if (notBorder((h-1), (w-1), WIDTH, HEIGHT) && notFlagg(pma0, (h-1), (w-1), WIDTH)) {
+    if (notBorder((h-1), (w-1), WIDTH, HEIGHT) && notExposed(pma0, (h-1), (w-1), WIDTH)) {
         *(pma0 + (h-1) * WIDTH + (w-1)) = 1;
+        *(emptySpaces) -= 1;
     }
 }
 
@@ -153,50 +162,50 @@ int expandable(const int* pcH, const int* pma, int h, int w, int WIDTH, int HEIG
     return 0;
 }
 
-int expand(const int* pmi, int* pcH, int* pma, int h, int w, int WIDTH, int HEIGHT) {
+int expand(int* emptySpaces, const int* pmi, int* pcH, int* pma, int h, int w, int WIDTH, int HEIGHT) {
     if (isMine(pmi, h, w, WIDTH)) {
         return 1;
     } else {
-        exposeNeigbours(pma, h, w, WIDTH, HEIGHT);
+        exposeNeigbours(emptySpaces, pma, h, w, WIDTH, HEIGHT);
         *(pcH + h * WIDTH + w) = -1;
 
         if (expandable(pcH, pma, (h-1), (w-1), WIDTH, HEIGHT)) {
-            if (expand(pmi, pcH, pma, (h-1), (w-1), WIDTH, HEIGHT)) {
+            if (expand(emptySpaces, pmi, pcH, pma, (h-1), (w-1), WIDTH, HEIGHT)) {
                 return 1;
             }
         }
         if (expandable(pcH, pma, (h-1), (w), WIDTH, HEIGHT)) {
-            if (expand(pmi, pcH, pma, (h-1), (w), WIDTH, HEIGHT)) {
+            if (expand(emptySpaces, pmi, pcH, pma, (h-1), (w), WIDTH, HEIGHT)) {
                 return 1;
             }
         }
         if (expandable(pcH, pma, (h-1), (w+1), WIDTH, HEIGHT)) {
-            if (expand(pmi, pcH, pma, (h-1), (w+1), WIDTH, HEIGHT)) {
+            if (expand(emptySpaces, pmi, pcH, pma, (h-1), (w+1), WIDTH, HEIGHT)) {
                 return 1;
             }
         }
         if (expandable(pcH, pma, (h), (w-1), WIDTH, HEIGHT)) {
-            if (expand(pmi, pcH, pma, (h), (w-1), WIDTH, HEIGHT)) {
+            if (expand(emptySpaces, pmi, pcH, pma, (h), (w-1), WIDTH, HEIGHT)) {
                 return 1;
             }
         }
         if (expandable(pcH, pma, (h), (w+1), WIDTH, HEIGHT)) {
-            if (expand(pmi, pcH, pma, (h), (w+1), WIDTH, HEIGHT)) {
+            if (expand(emptySpaces, pmi, pcH, pma, (h), (w+1), WIDTH, HEIGHT)) {
                 return 1;
             }
         }
         if (expandable(pcH, pma, (h+1), (w-1), WIDTH, HEIGHT)) {
-            if (expand(pmi, pcH, pma, (h+1), (w-1), WIDTH, HEIGHT)) {
+            if (expand(emptySpaces, pmi, pcH, pma, (h+1), (w-1), WIDTH, HEIGHT)) {
                 return 1;
             }
         }
         if (expandable(pcH, pma, (h+1), (w), WIDTH, HEIGHT)) {
-            if (expand(pmi, pcH, pma, (h+1), (w), WIDTH, HEIGHT)) {
+            if (expand(emptySpaces, pmi, pcH, pma, (h+1), (w), WIDTH, HEIGHT)) {
                 return 1;
             }
         }
         if (expandable(pcH, pma, (h+1), (w+1), WIDTH, HEIGHT)) {
-            if (expand(pmi, pcH, pma, (h+1), (w+1), WIDTH, HEIGHT)) {
+            if (expand(emptySpaces, pmi, pcH, pma, (h+1), (w+1), WIDTH, HEIGHT)) {
                 return 1;
             }
         }
