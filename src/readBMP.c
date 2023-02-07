@@ -21,7 +21,7 @@ int* LoadBitmapFile(char *filename, int* Width, int* Height) {
 
 
 
-    // read the bitmap header
+    // read the bitmap file header
     fread(&bitmapFileHeader, sizeof(BITMAPFILEHEADER),1,filePtr);
     if (bitmapFileHeader.bfType != 0x4D42) {
         fclose(filePtr);
@@ -30,7 +30,7 @@ int* LoadBitmapFile(char *filename, int* Width, int* Height) {
 
 
 
-    // reading header and moving pointer to the start of the image data
+    // reading info header and moving pointer to the start of the image data
     fread(&bitmapInfoHeader, sizeof(BITMAPINFOHEADER),1,filePtr); 
     fseek(filePtr, bitmapFileHeader.bfOffBits, SEEK_SET);
 
