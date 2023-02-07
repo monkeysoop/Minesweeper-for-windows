@@ -131,7 +131,7 @@ void LeftClick(const struct Image* images, int* alive, int* counter, int* emptyS
         if (isMine(pmi, H, W, WIDTH)) {
             wprintf(L"You Died!\n");
             *alive = 0;
-            *counter = FPS * 500;   // 5 seconds before closing
+            *counter = FPS * 5;   // 5 seconds before closing
             DrawMapLost(images, pmi, pcD, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
         } else {
             if (numOfNeighbours(pcH, H, W, WIDTH) > 0) {
@@ -142,7 +142,7 @@ void LeftClick(const struct Image* images, int* alive, int* counter, int* emptyS
                 if (expand(emptySpaces, pmi, pcH, pma, H, W, WIDTH, HEIGHT)) {
                     wprintf(L"You Died!\n");
                     *alive = 0;
-                    *counter = FPS * 500;   // 5 seconds before closing
+                    *counter = FPS * 5;   // 5 seconds before closing
                     DrawMapLost(images, pmi, pcD, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
                 } else {
                     DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
