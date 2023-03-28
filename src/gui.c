@@ -6,25 +6,19 @@
 #include <time.h>
 #include <shellapi.h>
 #include "readBMP.h"
-#include "gameEngine.h"
-
-
+#include "new_gameEngine.h"
 
 #define FPS 60   // This is just a limit
 #define PIXELS_PER_TILE 15   // Should be bigger than the width and the height of all source images
-#define SOURCE_IMAGES 22   // number of them
-
-
-
-void* bitmapMemory;
-
-
 
 struct Image {
     int* data;
     int w;
     int h;
 };
+
+void* bitmapMemory;
+
 
 
 
@@ -42,6 +36,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT msg, WPARAM wparam, LPARAM lparam)
     }
     return 0;
 }
+
 
 
 void printUsage() {
@@ -74,136 +69,97 @@ void DrawImage(int X, int Y, const struct Image* image, int PIXELS_W) {
 
 
 
-void DrawMapLost(const struct Image* images, const int* pmi, const int* pcD, const int* pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
+void DrawMapLost(const struct Image* images, int** pmi, int** pcD, int** pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
     for (int i = 1; i < (HEIGHT-1); i++) {
         for (int j = 1; j < (WIDTH-1); j++) {
-            int mi = *(pmi + i * WIDTH + j);
-            int pc = *(pcD + i * WIDTH + j);
-            int ma = *(pma + i * WIDTH + j);
+            int mi = pmi[i][j];
+            int pc = pcD[i][j];
+            int ma = pma[i][j];
             int y = (i - 1) * PIXELS_PER_TILE;
             int x = (j - 1) * PIXELS_PER_TILE;
+            int imageId;
             if (i == H && j == W) {
-                if (mi == 1) {
-                    DrawImage(x, y, (images + 21), PIXELS_W);;   // exploded bomb
-                } else if (pc > 0) {
-                    DrawImage(x, y, (images + pc + 8), PIXELS_W);   // exploded numbers
-                }
+                if (mi == 1) {      imageId = 21;}   // exploded bomb
+                else if (pc > 0) {  imageId = 8 + pc;}   // exploded numbers
             } else if (mi == 1) {
-                if (ma == -1) {
-                    DrawImage(x, y, (images + 17), PIXELS_W);;   // flagg
-                } else {
-                    DrawImage(x, y, (images + 20), PIXELS_W);;   // bomb
-                }
-            } else if (ma == -2) {
-                DrawImage(x, y, (images + 18), PIXELS_W);;   // incorrect flagg
-            } else {
-                DrawImage(x, y, (images + pc), PIXELS_W);   // numbers
-            }
+                if (ma == -1) {     imageId = 17;}   // flagg
+                else {              imageId = 20;}   // bomb
+            } else if (ma == -2) {  imageId = 18;}   // incorrect flagg
+            else {                  imageId = pc;}   // numbers
+            DrawImage(x, y, (images + imageId), PIXELS_W);
         }
     }
 }
 
 
 
-void DrawMap(const struct Image* images, const int* pmi, const int* pcD, const int* pma, int WIDTH, int HEIGHT, int PIXELS_W) {
+void DrawMap(const struct Image* images, int** pmi, int** pcD, int** pma, int WIDTH, int HEIGHT, int PIXELS_W) {
     for (int i = 1; i < (HEIGHT-1); i++) {
         for (int j = 1; j < (WIDTH-1); j++) {
-            int mi = *(pmi + i * WIDTH + j);
-            int pc = *(pcD + i * WIDTH + j);
-            int ma = *(pma + i * WIDTH + j);
+            int mi = pmi[i][j];
+            int pc = pcD[i][j];
+            int ma = pma[i][j];
             int y = (i - 1) * PIXELS_PER_TILE;
             int x = (j - 1) * PIXELS_PER_TILE;
-            if (ma == -2 || ma == -1) {
-                DrawImage(x, y, (images + 17), PIXELS_W);   // flagg
-            } else if (ma == 1) {
-                DrawImage(x, y, (images + pc), PIXELS_W);   // numbers + empty
-            } else {
-                DrawImage(x, y, (images + 19), PIXELS_W);   // unknown
-            }   
+            int imageId;
+            if (ma == -2 || ma == -1) { imageId = 17;}   // flagg
+            else if (ma == 1) {         imageId = pc;}   // numbers + empty
+            else {                      imageId = 19;}   // unknown
+            DrawImage(x, y, (images + imageId), PIXELS_W);  
         }
     }
 }
 
 
 
-void LeftClick(const struct Image* images, int* alive, int* counter, int* emptySpaces, const int* pmi, int* pcD, int* pcH, int* pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
-    if (notFlagg(pma, H, W, WIDTH)) {
-        if (isMine(pmi, H, W, WIDTH)) {
+void LeftClick(const struct Image* images, int* alive, int* counter, int* emptySpaces, int** pmi, int** pcD, int** pcH, int** pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
+    if (notFlagg(pma, H, W)) {
+        if (numOfNeighbours(pcH, H, W) > 0) {
+            if (notExposed(pma, H, W)) {
+                pma[H][W] = 1;
+                *(emptySpaces) -= 1;
+                DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
+            }
+        } else if (expand(emptySpaces, pmi, pcH, pma, H, W, WIDTH, HEIGHT)) {
             wprintf(L"You Died!\n");
             *alive = 0;
-            *counter = FPS * 5;   // 5 seconds before closing
+            *counter = FPS * 5;   // 5 seconds delay before closing
             DrawMapLost(images, pmi, pcD, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
         } else {
-            if (numOfNeighbours(pcH, H, W, WIDTH) > 0) {
-                *(pma + H * WIDTH + W) = 1;
-                *(emptySpaces) -= 1;
-                DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
-            } else {
-                if (expand(emptySpaces, pmi, pcH, pma, H, W, WIDTH, HEIGHT)) {
-                    wprintf(L"You Died!\n");
-                    *alive = 0;
-                    *counter = FPS * 5;   // 5 seconds before closing
-                    DrawMapLost(images, pmi, pcD, pma, H, W, WIDTH, HEIGHT, PIXELS_W);
-                } else {
-                    DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
-                }
-            }
+            DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
         }
     }
 }
 
 
 
-void RightClick(const struct Image* images, int* emptySpaces, int* flagCount, const int* pmi, const int* pcD, int* pcH, int* pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
-    if (isMine(pmi, H, W, WIDTH)) {
-        if (notFlagg(pma, H, W, WIDTH)) {
-            if (notExposed(pma, H, W, WIDTH) && *(flagCount)) {
-                *(flagCount) -= 1;
-                *(pma + H * WIDTH + W) = -1;
-                *(emptySpaces) -= 1;
-                addToNeigbours(pcH, H, W, WIDTH, -1);
-                DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
+void RightClick(const struct Image* images, int* emptySpaces, int* flagCount, int** pmi, int** pcD, int** pcH, int** pma, int H, int W, int WIDTH, int HEIGHT, int PIXELS_W) {
+    if (notFlagg(pma, H, W)) {
+        if (notExposed(pma, H, W) && *(flagCount)) {
+            if (isMine(pmi, H, W)) {
+                pma[H][W] = -1;
             } else {
-                wprintf(L"Illegal position or out of flags!\n");
+                pma[H][W] = -2;
             }
-        } else {
-            *(flagCount) += 1;
-            *(pma + H * WIDTH + W) = 0;
-            *(emptySpaces) += 1;
-            addToNeigbours(pcH, H, W, WIDTH, 1);
+            *(flagCount) -= 1;
+            *(emptySpaces) -= 1;
+            addToNeigbours(pmi, pcH, H, W, -1);
             DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
+        } else {
+            wprintf(L"Illegal position or out of flags!\n");
         }
     } else {
-        if (notFlagg(pma, H, W, WIDTH)) {
-            if (notExposed(pma, H, W, WIDTH) && *(flagCount)) {
-                *(flagCount) -= 1;
-                *(pma + H * WIDTH + W) = -2;
-                *(emptySpaces) -= 1;
-                addToNeigbours(pcH, H, W, WIDTH, -1);
-                DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
-            } else {
-                wprintf(L"Illegal position or out of flags!\n");
-            }
-        } else {
-            *(flagCount) += 1;
-            *(pma + H * WIDTH + W) = 0;
-            *(emptySpaces) += 1;
-            addToNeigbours(pcH, H, W, WIDTH, 1);
-            DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
-        }
+        *(flagCount) += 1;
+        pma[H][W] = 0;
+        *(emptySpaces) += 1;
+        addToNeigbours(pmi, pcH, H, W, +1);
+        DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
     }
 }
 
 
-
+  
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    float targetMsPerFrame = 1 / (float)FPS;
-    int tilesW = 16;   // Visible colums
-    int tilesH = 30;   // Visible rows
-    int bombDb = 99;
-
-
-
     WNDCLASS wc = {0};
     const char className[] = "MyWindowClass";
     wc.lpfnWndProc = WindowProc;
@@ -214,6 +170,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
         MessageBox(0, "RegisterClass failed!", 0, 0);
         return (int)GetLastError();
     }
+
+
+
+    int tilesW = 16;   // Visible colums
+    int tilesH = 30;   // Visible rows
+    int bombDb = 99;
 
 
 
@@ -277,6 +239,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
     }
 
 
+
     // Allocates memory for the pixels(bitmap) and creates the header for it
     bitmapMemory = VirtualAlloc(
         0, 
@@ -296,30 +259,30 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
 
 
     // loads all images into an array of structs
-    struct Image images[SOURCE_IMAGES];
-    char fileNames[SOURCE_IMAGES][64] = {"./media/empty.bmp",
-                                         "./media/one.bmp",
-                                         "./media/two.bmp",
-                                         "./media/three.bmp",
-                                         "./media/four.bmp",
-                                         "./media/five.bmp",  
-                                         "./media/six.bmp",
-                                         "./media/seven.bmp",
-                                         "./media/eight.bmp",
-                                         "./media/explodedone.bmp",
-                                         "./media/explodedtwo.bmp",
-                                         "./media/explodedthree.bmp",
-                                         "./media/explodedfour.bmp",
-                                         "./media/explodedfive.bmp",  
-                                         "./media/explodedsix.bmp",
-                                         "./media/explodedseven.bmp",
-                                         "./media/explodedeight.bmp",
-                                         "./media/flagg.bmp",
-                                         "./media/incorrectflag.bmp",
-                                         "./media/unknown.bmp",
-                                         "./media/bomb.bmp",
-                                         "./media/explodedbomb.bmp"};
-    for (int i = 0; i < SOURCE_IMAGES; i++) {
+    struct Image images[22];
+    char fileNames[22][64] = {"./media/empty.bmp",
+                              "./media/one.bmp",
+                              "./media/two.bmp",
+                              "./media/three.bmp",
+                              "./media/four.bmp",
+                              "./media/five.bmp",  
+                              "./media/six.bmp",
+                              "./media/seven.bmp",
+                              "./media/eight.bmp",
+                              "./media/explodedone.bmp",
+                              "./media/explodedtwo.bmp",
+                              "./media/explodedthree.bmp",
+                              "./media/explodedfour.bmp",
+                              "./media/explodedfive.bmp",  
+                              "./media/explodedsix.bmp",
+                              "./media/explodedseven.bmp",
+                              "./media/explodedeight.bmp",
+                              "./media/flagg.bmp",
+                              "./media/incorrectflag.bmp",
+                              "./media/unknown.bmp",
+                              "./media/bomb.bmp",
+                              "./media/explodedbomb.bmp"};
+    for (int i = 0; i < 22; i++) {
         int* imageBitmapData = LoadBitmapFile(fileNames[i], &images[i].w, &images[i].h);
         if (imageBitmapData == NULL) {
             wprintf(L"Failed to load bmp image: %s\n", fileNames[i]);
@@ -328,43 +291,35 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
             images[i].data = imageBitmapData;
         }
     }
-    
-
-
-    // starts the counting, (its needed for limiting FPS)
-    LARGE_INTEGER startCounter, endCounter, frequency;
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&startCounter);
-
-
-
-    // seeding the random number generator
-    srand(time(NULL));
 
 
 
     // creating arrays for the game
-    int* pmi = malloc(WIDTH * HEIGHT * sizeof(int));
+    int** pmi = malloc(HEIGHT * sizeof(int*));
     // 0 - no mine
     // 1 - mine
     
-    int* pcD = malloc(WIDTH * HEIGHT * sizeof(int));
-    memset(pcD, 0, WIDTH * HEIGHT * sizeof(int));
+    int** pcD = malloc(HEIGHT * sizeof(int*));
     // 0-8 - number of surrounding mines (0 if its a mine)
     // (-1) - border
-    // constant
     
-    int* pcH = malloc(WIDTH * HEIGHT * sizeof(int));
-    memset(pcH, 0, WIDTH * HEIGHT * sizeof(int));
+    int** pcH = malloc(HEIGHT * sizeof(int*));
     // 0-8 - number of surrounding mines (0 if its a mine)
     // can change
     
-    int* pma = malloc(WIDTH * HEIGHT * sizeof(int));
-    memset(pma, 0, WIDTH * HEIGHT * sizeof(int));
+    int** pma = malloc(HEIGHT * sizeof(int*));
     // 0 - hidden
     // 1 - exposed
     // (-1) - flagg
     // (-2) - incorrect flagg
+    for (int i = 0; i < HEIGHT; i++) {
+        pmi[i] = malloc(WIDTH * sizeof(int));
+        pcD[i] = malloc(WIDTH * sizeof(int));
+        pcH[i] = malloc(WIDTH * sizeof(int));
+        pma[i] = malloc(WIDTH * sizeof(int));
+        memset(pcH[i], 0, WIDTH * sizeof(int));
+        memset(pma[i], 0, WIDTH * sizeof(int));
+    }
 
 
 
@@ -373,22 +328,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
     int H;
     int W;
     int failed = 0;
+
+    // seeding the random number generator
+    srand(time(NULL));
+
     do {
-        memset(pmi, 0, WIDTH * HEIGHT * sizeof(int));
+        for (int i = 0; i < HEIGHT; i++) {
+            memset(pmi[i], 0, WIDTH * sizeof(int));
+            memset(pcD[i], 0, WIDTH * sizeof(int));
+        }
         generateMines(pmi, WIDTH, HEIGHT, db);
         countMines(pmi, pcD, WIDTH, HEIGHT);
-    } while (getStartingPos(pmi, pcD, &H, &W, WIDTH, HEIGHT) && ++failed < 100);
+    } while (getStartingPos(pmi, pcD, &H, &W, WIDTH, HEIGHT) && ++failed < 10000);
     if (failed == 100) {
-        wprintf(L"Failed to generate mines or a starting position after 100 tries\n");
+        wprintf(L"Failed to generate mines or a starting position after 100 tries, maybe try with less bombs\n");
         return 1;
     }
     matrixCopy(pcD, pcH, WIDTH, HEIGHT);   //copies countDefault to countHidden
-    setBorder(pcD, WIDTH, HEIGHT);   //creates a border
     expand(&emptySpaces, pmi, pcH, pma, H, W, WIDTH, HEIGHT);   //expand from starting position
     DrawMap(images, pmi, pcD, pma, WIDTH, HEIGHT, PIXELS_W);
 
 
 
+    // starts the counting, (its needed for limiting FPS)
+    float targetMsPerFrame = 1 / (float)FPS;
+    LARGE_INTEGER startCounter, endCounter, frequency;
+    QueryPerformanceFrequency(&frequency);
+    
     // game loop
     wprintf(L"There are %d mines to be found!\n", db);
     POINT pos;
@@ -403,7 +369,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
         } else if (alive) {
             counter++;
         } else {
-            counter--;
+            counter--;    // after losing the counter is set to eg: 300 which is 60*5 and if we loop at 60fps than this creates 5sec delay before closing
         }
 
         MSG msg;
@@ -449,6 +415,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR lpCmdLine,
     free(pcD);
     free(pcH);
     free(pma);
+    VirtualFree(0, PIXELS_H * PIXELS_W * 4, MEM_DECOMMIT);
 
 
 
