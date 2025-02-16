@@ -25,3 +25,6 @@ gcc .\gui.c .\readBMP.c .\gameEngine.c -lgdi32
       ```
       .\a.exe [Width, min 4] [Height, min 4] [Bomb percentile, max 90%]
       ```
+
+## Website with more details
+https://istokendre.web.elte.hu/Honlap/
